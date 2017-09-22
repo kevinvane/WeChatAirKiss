@@ -1,6 +1,8 @@
 package me.zhchbin.airkiss;
 
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
@@ -14,12 +16,13 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 
-public class MainActivity extends ActionBarActivity implements AirKissCallBack{
+public class MainActivity extends ActionBarActivity implements AirKissCallBack,DialogInterface.OnDismissListener {
 
     private final String TAG = getClass().getSimpleName();
     private EditText mSSIDEditText;
     private EditText mPasswordEditText;
     private AirKissConfig airKissConfig;
+    private ProgressDialog mDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,7 +31,8 @@ public class MainActivity extends ActionBarActivity implements AirKissCallBack{
 
         mSSIDEditText = (EditText)findViewById(R.id.ssidEditText);
         mPasswordEditText = (EditText)findViewById(R.id.passwordEditText);
-
+        mDialog = new ProgressDialog(this);
+        mDialog.setOnDismissListener(this);
         Context context = getApplicationContext();
         ConnectivityManager connManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
@@ -57,6 +61,8 @@ public class MainActivity extends ActionBarActivity implements AirKissCallBack{
             toast.show();
             return;
         }
+        this.mDialog.setMessage("正在配置...");
+        this.mDialog.show();
         airKissConfig = new AirKissConfig(this);
         airKissConfig.execute(ssid, password);
         //new AirKissDiscover().execute();
@@ -65,20 +71,41 @@ public class MainActivity extends ActionBarActivity implements AirKissCallBack{
     @Override
     public void airKissConfigSuccess() {
         Log.i(TAG, "airKissConfigSuccess: ");
+        dismissDialog("配置成功.");
     }
 
     @Override
     public void airKissConfigFail() {
         Log.e(TAG, "airKissConfigFail: ");
-
+        dismissDialog("配置失败.");
     }
 
     @Override
     public void airKissConfigTimeOut() {
         Log.e(TAG, "airKissConfigTimeOut: ");
-
+        dismissDialog("配置超时.");
     }
 
+    @Override
+    public void onDismiss(DialogInterface dialogInterface) {
+        if(airKissConfig!=null){
+            airKissConfig.cancel();
+        }
+    }
+
+    private void dismissDialog(final String msg){
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if(mDialog!=null){
+                    mDialog.dismiss();
+                }
+                Toast.makeText(getApplicationContext(),msg , Toast.LENGTH_LONG).show();
+            }
+        });
+
+    }
 
 //    private class AirKissTask extends AsyncTask<Void, Void, Void> implements DialogInterface.OnDismissListener {
 //

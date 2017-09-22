@@ -20,7 +20,7 @@ public class AirKissConfig {
     //这个是空的数据，数据载体是lenght
     private final byte DUMMY_DATA[] = new byte[1500];
     //收到多少个回复包才认为是配置成功
-    private static final int REPLY_BYTE_CONFIRM_TIMES = 20;
+    private static final int REPLY_BYTE_CONFIRM_TIMES = 2;
     //接收回复包的端口
     private static final int PORT = 10000;
 
@@ -46,7 +46,7 @@ public class AirKissConfig {
             isReadThreadRunning = true;
             new ReceiveThread().start();
         }
-        new SendThread().start();
+        //new SendThread().start();
     }
     public void cancel(){
 
@@ -91,7 +91,7 @@ public class AirKissConfig {
                         //Log.d(" receivedData[]", "receivedData---packet.getLength() ====" + packet.getLength());
 
                         if (replyByteCounter >= REPLY_BYTE_CONFIRM_TIMES) {
-                            Log.d("onPreExecute","线程读到的包大于等于5个了");
+                            Log.d("onPreExecute","线程读到的包等于"+REPLY_BYTE_CONFIRM_TIMES+"个了");
                             mDone = true;
                             airKissCallBack.airKissConfigSuccess();
                             break;
@@ -104,12 +104,15 @@ public class AirKissConfig {
                     }
                 }
                 isReadThreadRunning = false;
-                Log.i(TAG,"ReceiveThread线程结束 udpServerSocket.close");
+
 
             } catch (SocketException e) {
                 e.printStackTrace();
             }finally {
-                if(udpServerSocket!=null)udpServerSocket.close();
+                if(udpServerSocket!=null){
+                    Log.i(TAG,"ReceiveThread线程结束 udpServerSocket.close");
+                    udpServerSocket.close();
+                }
                 interrupt();
             }
         }
