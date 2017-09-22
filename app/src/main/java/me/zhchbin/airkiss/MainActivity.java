@@ -9,12 +9,13 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -25,7 +26,7 @@ import java.net.SocketTimeoutException;
 public class MainActivity extends ActionBarActivity {
     private EditText mSSIDEditText;
     private EditText mPasswordEditText;
-
+    private boolean stopConfig = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,9 +67,9 @@ public class MainActivity extends ActionBarActivity {
     }
 
     private class AirKissTask extends AsyncTask<Void, Void, Void> implements DialogInterface.OnDismissListener {
-        private static final int PORT = 10000;
         private final byte DUMMY_DATA[] = new byte[1500];
         private static final int REPLY_BYTE_CONFIRM_TIMES = 5;
+        private static final int PORT = 10000;
 
         private ProgressDialog mDialog;
         private Context mContext;
@@ -96,23 +97,30 @@ public class MainActivity extends ActionBarActivity {
                 public void run() {
                     byte[] buffer = new byte[15000];
                     try {
+
                         DatagramSocket udpServerSocket = new DatagramSocket(PORT);
                         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                         int replyByteCounter = 0;
-                        udpServerSocket.setSoTimeout(1000);
-                        while (true) {
+                        udpServerSocket.setSoTimeout(60*1000);
+                        while (!stopConfig) {
                             if (getStatus() == Status.FINISHED)
                                 break;
 
                             try {
                                 udpServerSocket.receive(packet);
+                                //Log.d("run: ","端口"+PORT+"收到消息");
                                 byte receivedData[] = packet.getData();
                                 for (byte b : receivedData) {
-                                    if (b == mRandomChar)
+                                    if (b == mRandomChar){
                                         replyByteCounter++;
+                                        Log.w(" receivedData[]",  "packet.getData()----b == mRandomChar----"+b);
+                                    }
                                 }
+                                Log.e(" receivedData[]", "receivedData---replyByteCounter ====" + replyByteCounter);
+                                Log.e(" receivedData[]", "receivedData---packet.getLength() ====" + packet.getLength());
 
-                                if (replyByteCounter > REPLY_BYTE_CONFIRM_TIMES) {
+                                if (replyByteCounter >= REPLY_BYTE_CONFIRM_TIMES) {
+                                    Log.d("onPreExecute","线程读到的包大于等于5个了");
                                     mDone = true;
                                     break;
                                 }
@@ -122,7 +130,7 @@ public class MainActivity extends ActionBarActivity {
                                 e.printStackTrace();
                             }
                         }
-
+                        Log.d("onPreExecute","线程结束 udpServerSocket.close");
                         udpServerSocket.close();
                     } catch (SocketException e) {
                         e.printStackTrace();
@@ -131,18 +139,7 @@ public class MainActivity extends ActionBarActivity {
             }).start();
         }
 
-        private void sendPacketAndSleep(int length) {
-            try {
-                DatagramPacket pkg = new DatagramPacket(DUMMY_DATA,
-                                                        length,
-                                                        InetAddress.getByName("255.255.255.255"),
-                                                        PORT);
-                mSocket.send(pkg);
-                Thread.sleep(4);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+
 
         @Override
         protected Void doInBackground(Void... params) {
@@ -157,12 +154,35 @@ public class MainActivity extends ActionBarActivity {
             for (int i = 0; i < encoded_data.length; ++i) {
                 sendPacketAndSleep(encoded_data[i]);
                 if (i % 200 == 0) {
-                    if (isCancelled() || mDone)
+                    if (isCancelled() || mDone){
+                        Log.d("doInBackground","isCancelled()="+isCancelled());
                         return null;
+                    }
                 }
             }
+            Log.d("doInBackground","encoded_data遍历完成");
 
             return null;
+        }
+
+        private void sendPacketAndSleep(int length) {
+
+
+            //这个端口为随机端口
+            //如果没有socket监听该端口，会有异常at libcore.io.IoBridge.maybeThrowAfterRecvfrom
+            //往10000端口发的话，不会有异常
+            //虽然有异常,但不影响配置功能
+            int port_send = 10000;
+            try {
+                DatagramPacket pkg = new DatagramPacket(DUMMY_DATA,
+                        length,
+                        InetAddress.getByName("255.255.255.255"),
+                        port_send);
+                mSocket.send(pkg);
+                Thread.sleep(2);
+            } catch (Exception e) {
+                //e.printStackTrace();
+            }
         }
 
         @Override
@@ -182,6 +202,7 @@ public class MainActivity extends ActionBarActivity {
             } else {
                 result = "Air Kiss Timeout.";
             }
+            stopConfig = true;
             Toast.makeText(getApplicationContext(), result, Toast.LENGTH_LONG).show();
         }
 
