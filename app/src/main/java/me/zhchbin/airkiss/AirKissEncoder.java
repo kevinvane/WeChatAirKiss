@@ -11,7 +11,12 @@ public class AirKissEncoder {
     private char mRandomChar = (char)(new Random().nextInt(0x7F));
 
     public AirKissEncoder(String ssid, String password) {
-        int times = 5;
+
+        //本来是5，很快就发完
+        //设置为10，大概有30s发完
+        //设置为12，大概有44s发完
+        //设置为13，大概有61s发完
+        int times = 12;
         while (times-- > 0) {
             leadingPart();
             magicCode(ssid, password);
