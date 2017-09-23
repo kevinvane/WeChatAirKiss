@@ -18,13 +18,21 @@ public class AirKissDiscover {
 
     private final String TAG = getClass().getSimpleName();
     private boolean isReadThreadRunning = false;
+    private static final int PORT = 12476;
+    private boolean isCancelled = false;
 
 
     public void execute(){
-        new DiscoverDevThread().start();
-        new SendThread().start();
+        if(!isReadThreadRunning){
+            isReadThreadRunning = true;
+            new DiscoverDevThread().start();
+            new SendThread().start();
+        }
     }
+    public void cancel(){
 
+        isCancelled = true;
+    }
     private class SendThread extends Thread{
 
         private DatagramSocket mSocket;
@@ -39,19 +47,20 @@ public class AirKissDiscover {
             } catch (SocketException e) {
                 e.printStackTrace();
             }
-            sendPacketAndSleep(0);
+            while(!isCancelled){
+                sendPacketAndSleep(0);
+            }
             Log.i(TAG,"SendThread 线程结束");
             interrupt();
         }
         private void sendPacketAndSleep(int length) {
 
-            int port_send = 10000;
             try {
                 String data = "ping";
                 DatagramPacket pkg = new DatagramPacket(data.getBytes(),
                         length,
                         InetAddress.getByName("255.255.255.255"),
-                        port_send);
+                        PORT);
                 mSocket.send(pkg);
                 //睡眠时间必须是毫秒级别的，如果是4s，配置将会很慢
                 Thread.sleep(1000);
@@ -67,17 +76,16 @@ public class AirKissDiscover {
         public void run() {
             super.run();
 
-            byte[] buffer = new byte[15000];
+            byte[] buffer = new byte[1024];
             DatagramSocket udpServerSocket = null;
             try {
-                int port = 12476;
-                udpServerSocket = new DatagramSocket(port);
+                udpServerSocket = new DatagramSocket(PORT);
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 int replyByteCounter = 0;
                 udpServerSocket.setSoTimeout(60*1000);
-                Log.d(TAG, "ReceiveThread: 开始监听"+port);
+                Log.d(TAG, "ReceiveThread: 开始监听"+PORT);
 
-                while (!isReadThreadRunning) {
+                while (!isCancelled) {
 
                     try {
                         udpServerSocket.receive(packet);
@@ -86,7 +94,7 @@ public class AirKissDiscover {
                         Log.d(" receivedData[]", "receivedData---replyByteCounter ====" + replyByteCounter);
                         Log.d(" receivedData[]", "receivedData---packet.getLength() ====" + packet.getLength());
                         Log.d(" receivedData[]", "receivedData---packet ====" + new String(receivedData));
-
+                        //如果是自己发的，忽略；设备发的解析数据包，得到设备id和设备类型
                     } catch (SocketTimeoutException e) {
                         e.printStackTrace();
                         interrupt();

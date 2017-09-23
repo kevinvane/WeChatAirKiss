@@ -46,7 +46,7 @@ public class AirKissConfig {
             isReadThreadRunning = true;
             new ReceiveThread().start();
         }
-        //new SendThread().start();
+        new SendThread().start();
     }
     public void cancel(){
 
@@ -65,7 +65,7 @@ public class AirKissConfig {
         public void run() {
             super.run();
 
-            byte[] buffer = new byte[15000];
+            byte[] buffer = new byte[1024];
             DatagramSocket udpServerSocket = null;
             try {
                 udpServerSocket = new DatagramSocket(PORT);
@@ -78,8 +78,8 @@ public class AirKissConfig {
                 while (!stopConfig) {
 
                     try {
+                        Log.d("run: ","阻塞读...");
                         udpServerSocket.receive(packet);
-                        //Log.d("run: ","端口"+PORT+"收到消息");
                         byte receivedData[] = packet.getData();
                         for (byte b : receivedData) {
                             if (b == mRandomChar){
@@ -88,7 +88,8 @@ public class AirKissConfig {
                             }
                         }
                         //Log.d(" receivedData[]", "receivedData---replyByteCounter ====" + replyByteCounter);
-                        //Log.d(" receivedData[]", "receivedData---packet.getLength() ====" + packet.getLength());
+                        Log.d(" receivedData[]", "receivedData---packet.getLength() ====" + packet.getLength());
+                        //Log.d(" receivedData[]", "receivedData---packet.getLength() ====" + new String(receivedData));
 
                         if (replyByteCounter >= REPLY_BYTE_CONFIRM_TIMES) {
                             Log.d("onPreExecute","线程读到的包等于"+REPLY_BYTE_CONFIRM_TIMES+"个了");
