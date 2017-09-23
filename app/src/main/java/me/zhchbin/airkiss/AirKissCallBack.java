@@ -7,6 +7,5 @@ package me.zhchbin.airkiss;
 public interface AirKissCallBack {
 
     void airKissConfigSuccess();
-    void airKissConfigFail();
     void airKissConfigTimeOut();
 }

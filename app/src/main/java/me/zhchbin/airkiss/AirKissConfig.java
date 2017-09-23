@@ -27,8 +27,7 @@ public class AirKissConfig {
     private char mRandomChar;
     private AirKissEncoder mAirKissEncoder;
     private volatile boolean mDone = false;
-    private boolean isCancelled = false;
-    private boolean stopConfig;
+    private boolean isCancelled;
     private boolean isReadThreadRunning = false;
 
     private AirKissCallBack airKissCallBack;
@@ -40,21 +39,29 @@ public class AirKissConfig {
 
     public void execute(String ssid, String password){
 
+        if(isReadThreadRunning){
+
+            Log.e(TAG, "execute: read thread is running ,so return." );
+            return;
+        }
+        resetFalg();
         mAirKissEncoder = new AirKissEncoder(ssid, password);
         mRandomChar = mAirKissEncoder.getRandomChar();
-        if(!isReadThreadRunning){
-            isReadThreadRunning = true;
-            new ReceiveThread().start();
-        }
+        new ReceiveThread().start();
         new SendThread().start();
+    }
+    private void resetFalg(){
+
+        mDone = false;
+        isCancelled = false;
     }
     public void cancel(){
 
         isCancelled = true;
     }
-    public void release(){
+    private void finishConfig(){
 
-        stopConfig = true;
+        mDone = true;
     }
 
 
@@ -65,17 +72,20 @@ public class AirKissConfig {
         public void run() {
             super.run();
 
+            isReadThreadRunning = true;
             byte[] buffer = new byte[1024];
             DatagramSocket udpServerSocket = null;
             try {
                 udpServerSocket = new DatagramSocket(PORT);
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 int replyByteCounter = 0;
-                udpServerSocket.setSoTimeout(60*1000);
+
+                //发送数据的线程结束，读线程收不到数据，就会导致超时，释放资源
+                udpServerSocket.setSoTimeout(2*1000);
                 Log.d(TAG, "ReceiveThread: 开始监听"+PORT);
                 Log.d(TAG, "ReceiveThread: mRandomChar="+Integer.valueOf(mRandomChar));
 
-                while (!stopConfig) {
+                while (!mDone && !isCancelled) {
 
                     try {
                         Log.d("run: ","阻塞读...");
@@ -93,7 +103,8 @@ public class AirKissConfig {
 
                         if (replyByteCounter >= REPLY_BYTE_CONFIRM_TIMES) {
                             Log.d("onPreExecute","线程读到的包等于"+REPLY_BYTE_CONFIRM_TIMES+"个了");
-                            mDone = true;
+                            //mDone = true;
+                            finishConfig();
                             airKissCallBack.airKissConfigSuccess();
                             break;
                         }
@@ -102,14 +113,13 @@ public class AirKissConfig {
                         interrupt();
                     } catch (IOException e) {
                         e.printStackTrace();
+                        interrupt();
                     }
                 }
-                isReadThreadRunning = false;
-
-
             } catch (SocketException e) {
                 e.printStackTrace();
             }finally {
+                isReadThreadRunning = false;
                 if(udpServerSocket!=null){
                     Log.i(TAG,"ReceiveThread线程结束 udpServerSocket.close");
                     udpServerSocket.close();
@@ -147,6 +157,7 @@ public class AirKissConfig {
             for (int i = 0; i < encoded_data.length; ++i) {
                 sendPacketAndSleep(encoded_data[i]);
                 if (i % 200 == 0) {
+                    //如果取消或者已经完成
                     if (isCancelled || mDone){
                         Log.d(TAG,"SendThread isCancelled="+isCancelled);
                         Log.d(TAG,"SendThread mDone="+mDone);
@@ -156,7 +167,8 @@ public class AirKissConfig {
             }
             Log.d(TAG,"SendThread encoded_data遍历完成,发送数据包结束.");
             airKissCallBack.airKissConfigTimeOut();
-            release();
+            //改变标志位，让读线程也退出。
+            cancel();
         }
         private void sendPacketAndSleep(int length) {
 

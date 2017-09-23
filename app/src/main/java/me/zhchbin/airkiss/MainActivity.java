@@ -74,11 +74,6 @@ public class MainActivity extends ActionBarActivity implements AirKissCallBack,D
         dismissDialog("配置成功.");
     }
 
-    @Override
-    public void airKissConfigFail() {
-        Log.e(TAG, "airKissConfigFail: ");
-        dismissDialog("配置失败.");
-    }
 
     @Override
     public void airKissConfigTimeOut() {
@@ -88,6 +83,8 @@ public class MainActivity extends ActionBarActivity implements AirKissCallBack,D
 
     @Override
     public void onDismiss(DialogInterface dialogInterface) {
+
+        Log.e(TAG, "onDismiss: do" );
         if(airKissConfig!=null){
             airKissConfig.cancel();
         }
