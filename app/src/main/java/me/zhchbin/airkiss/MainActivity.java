@@ -62,10 +62,10 @@ public class MainActivity extends ActionBarActivity implements AirKissCallBack,D
             return;
         }
         this.mDialog.setMessage("正在配置...");
-        this.mDialog.show();
-        airKissConfig = new AirKissConfig(this);
-        airKissConfig.execute(ssid, password);
-        //new AirKissDiscover().execute();
+        //this.mDialog.show();
+        //airKissConfig = new AirKissConfig(this);
+        //airKissConfig.execute(ssid, password);
+        new AirKissDiscover().execute();
     }
 
     @Override
